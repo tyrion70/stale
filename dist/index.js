@@ -3729,104 +3729,18 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(__webpack_require__(470));
-const github = __importStar(__webpack_require__(469));
+const IssueProcessor_1 = __webpack_require__(656);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const args = getAndValidateArgs();
-            const client = new github.GitHub(args.repoToken);
-            yield processIssues(client, args, args.operationsPerRun);
+            const processor = new IssueProcessor_1.IssueProcessor(args);
+            yield processor.processIssues();
         }
         catch (error) {
             core.error(error);
             core.setFailed(error.message);
         }
-    });
-}
-function processIssues(client, args, operationsLeft, page = 1) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const issues = yield client.issues.listForRepo({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            state: 'open',
-            labels: args.onlyLabels,
-            per_page: 100,
-            page
-        });
-        operationsLeft -= 1;
-        if (issues.data.length === 0 || operationsLeft === 0) {
-            return operationsLeft;
-        }
-        for (const issue of issues.data.values()) {
-            core.debug(`found issue: ${issue.title} last updated ${issue.updated_at}`);
-            const isPr = !!issue.pull_request;
-            const staleMessage = isPr ? args.stalePrMessage : args.staleIssueMessage;
-            if (!staleMessage) {
-                core.debug(`skipping ${isPr ? 'pr' : 'issue'} due to empty message`);
-                continue;
-            }
-            const staleLabel = isPr ? args.stalePrLabel : args.staleIssueLabel;
-            const exemptLabel = isPr ? args.exemptPrLabel : args.exemptIssueLabel;
-            if (exemptLabel && isLabeled(issue, exemptLabel)) {
-                continue;
-            }
-            else if (isLabeled(issue, staleLabel)) {
-                if (args.daysBeforeClose >= 0 &&
-                    wasLastUpdatedBefore(issue, args.daysBeforeClose)) {
-                    operationsLeft -= yield closeIssue(client, issue);
-                }
-                else {
-                    continue;
-                }
-            }
-            else if (wasLastUpdatedBefore(issue, args.daysBeforeStale)) {
-                operationsLeft -= yield markStale(client, issue, staleMessage, staleLabel);
-            }
-            if (operationsLeft <= 0) {
-                core.warning(`performed ${args.operationsPerRun} operations, exiting to avoid rate limit`);
-                return 0;
-            }
-        }
-        return yield processIssues(client, args, operationsLeft, page + 1);
-    });
-}
-function isLabeled(issue, label) {
-    const labelComparer = l => label.localeCompare(l.name, undefined, { sensitivity: 'accent' }) === 0;
-    return issue.labels.filter(labelComparer).length > 0;
-}
-function wasLastUpdatedBefore(issue, num_days) {
-    const daysInMillis = 1000 * 60 * 60 * 24 * num_days;
-    const millisSinceLastUpdated = new Date().getTime() - new Date(issue.updated_at).getTime();
-    return millisSinceLastUpdated >= daysInMillis;
-}
-function markStale(client, issue, staleMessage, staleLabel) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.debug(`marking issue${issue.title} as stale`);
-        yield client.issues.createComment({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            issue_number: issue.number,
-            body: staleMessage
-        });
-        yield client.issues.addLabels({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            issue_number: issue.number,
-            labels: [staleLabel]
-        });
-        return 2; // operations performed
-    });
-}
-function closeIssue(client, issue) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.debug(`closing issue ${issue.title} for being stale`);
-        yield client.issues.update({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            issue_number: issue.number,
-            state: 'closed'
-        });
-        return 1; // operations performed
     });
 }
 function getAndValidateArgs() {
@@ -3841,7 +3755,8 @@ function getAndValidateArgs() {
         stalePrLabel: core.getInput('stale-pr-label', { required: true }),
         exemptPrLabel: core.getInput('exempt-pr-label'),
         onlyLabels: core.getInput('only-labels'),
-        operationsPerRun: parseInt(core.getInput('operations-per-run', { required: true }))
+        operationsPerRun: parseInt(core.getInput('operations-per-run', { required: true })),
+        debugOnly: (core.getInput('debug-only') === 'true')
     };
     for (const numberInput of [
         'days-before-stale',
@@ -8500,6 +8415,162 @@ if (process.platform === 'linux') {
     'SIGUNUSED'
   )
 }
+
+
+/***/ }),
+
+/***/ 656:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const core = __importStar(__webpack_require__(470));
+const github = __importStar(__webpack_require__(469));
+/***
+ * Handle processing of issues for staleness/closure.
+ */
+class IssueProcessor {
+    constructor(options) {
+        this.operationsLeft = 0;
+        this.options = options;
+        this.client = new github.GitHub(options.repoToken);
+    }
+    processIssues(page = 1) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.options.debugOnly) {
+                core.warning('Executing in debug mode. Debug output will be written but no issues will be processed.');
+            }
+            if (this.operationsLeft <= 0) {
+                core.warning('Reached max number of operations to process. Exiting.');
+                return 0;
+            }
+            // get the next batch of issues
+            const issues = yield this.getIssues(page);
+            if (issues.data.length <= 0) {
+                core.debug('No more issues found to process. Exiting.');
+                return this.operationsLeft;
+            }
+            for (const issue of issues.data.values()) {
+                const isPr = !!issue.pull_request;
+                core.debug(`Found issue: issue #${issue.number} - ${issue.title} last updated ${issue.updated_at} (is pr? ${isPr})`);
+                // calculate string based messages for this issue
+                const staleMessage = isPr
+                    ? this.options.stalePrMessage
+                    : this.options.staleIssueMessage;
+                const staleLabel = isPr
+                    ? this.options.stalePrLabel
+                    : this.options.staleIssueLabel;
+                const exemptLabel = isPr
+                    ? this.options.exemptPrLabel
+                    : this.options.exemptIssueLabel;
+                const issueType = isPr ? 'pr' : 'issue';
+                if (!staleMessage) {
+                    core.debug(`Skipping ${issueType} due to empty stale message`);
+                    continue;
+                }
+                if (exemptLabel && IssueProcessor.isLabeled(issue, exemptLabel)) {
+                    core.debug(`Skipping ${issueType} because it has an exempt label`);
+                    continue; // don't process exempt issues
+                }
+                if (!IssueProcessor.isLabeled(issue, staleLabel)) {
+                    core.debug(`Found a stale ${issueType}`);
+                    if (this.options.daysBeforeClose >= 0 &&
+                        IssueProcessor.wasLastUpdatedBefore(issue, this.options.daysBeforeClose)) {
+                        core.debug(`Closing ${issueType} because it was last updated on ${issue.updated_at}`);
+                        yield this.closeIssue(issue);
+                        this.operationsLeft -= 1;
+                    }
+                    else {
+                        core.debug(`Ignoring stale ${issueType} because it was updated recenlty`);
+                    }
+                }
+                else if (IssueProcessor.wasLastUpdatedBefore(issue, this.options.daysBeforeStale)) {
+                    core.debug(`Marking ${issueType} stale because it was last updated on ${issue.updated_at}`);
+                    yield this.markStale(issue, staleMessage, staleLabel);
+                    this.operationsLeft -= 2;
+                }
+            }
+            // do the next batch
+            return yield this.processIssues(page + 1);
+        });
+    }
+    // grab issues from github in baches of 100
+    getIssues(page) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.client.issues.listForRepo({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                state: 'open',
+                labels: this.options.onlyLabels,
+                per_page: 100,
+                page
+            });
+        });
+    }
+    // Mark an issue as stale with a comment and a label
+    markStale(issue, staleMessage, staleLabel) {
+        return __awaiter(this, void 0, void 0, function* () {
+            core.debug(`Marking issue #${issue.number} - ${issue.title} as stale`);
+            if (this.options.debugOnly) {
+                return;
+            }
+            yield this.client.issues.createComment({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                issue_number: issue.number,
+                body: staleMessage
+            });
+            yield this.client.issues.addLabels({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                issue_number: issue.number,
+                labels: [staleLabel]
+            });
+        });
+    }
+    /// Close an issue based on staleness
+    closeIssue(issue) {
+        return __awaiter(this, void 0, void 0, function* () {
+            core.debug(`Closing issue #${issue.number} - ${issue.title} for being stale`);
+            if (this.options.debugOnly) {
+                return;
+            }
+            yield this.client.issues.update({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+            });
+        });
+    }
+    static isLabeled(issue, label) {
+        const labelComparer = l => label.localeCompare(l.name, undefined, { sensitivity: 'accent' }) === 0;
+        return issue.labels.filter(labelComparer).length > 0;
+    }
+    static wasLastUpdatedBefore(issue, num_days) {
+        const daysInMillis = 1000 * 60 * 60 * 24 * num_days;
+        const millisSinceLastUpdated = new Date().getTime() - new Date(issue.updated_at).getTime();
+        return millisSinceLastUpdated >= daysInMillis;
+    }
+}
+exports.IssueProcessor = IssueProcessor;
 
 
 /***/ }),

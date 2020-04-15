@@ -3756,7 +3756,7 @@ function getAndValidateArgs() {
         exemptPrLabel: core.getInput('exempt-pr-label'),
         onlyLabels: core.getInput('only-labels'),
         operationsPerRun: parseInt(core.getInput('operations-per-run', { required: true })),
-        debugOnly: (core.getInput('debug-only') === 'true')
+        debugOnly: core.getInput('debug-only') === 'true'
     };
     for (const numberInput of [
         'days-before-stale',
@@ -8450,6 +8450,7 @@ class IssueProcessor {
     constructor(options) {
         this.operationsLeft = 0;
         this.options = options;
+        this.operationsLeft = options.operationsPerRun;
         this.client = new github.GitHub(options.repoToken);
     }
     processIssues(page = 1) {

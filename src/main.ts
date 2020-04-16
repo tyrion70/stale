@@ -58,6 +58,8 @@ async function processIssues(
     );
     let isPr = !!issue.pull_request;
 
+    if (!isPr) continue;
+
     let staleMessage = isPr ? args.stalePrMessage : args.staleIssueMessage;
     if (!staleMessage) {
       core.debug(`skipping ${isPr ? 'pr' : 'issue'} due to empty message`);
@@ -75,7 +77,7 @@ async function processIssues(
       } else {
         continue;
       }
-    } else if (wasLastUpdatedBefore(issue, args.daysBeforeStale)) {
+    } else if (needsrebase(issue)) {
       operationsLeft -= await markStale(
         client,
         issue,
@@ -107,6 +109,9 @@ function wasLastUpdatedBefore(issue: Issue, num_days: number): boolean {
   return millisSinceLastUpdated >= daysInMillis;
 }
 
+function needsrebase(issue: Issue): boolean {
+  return new Date(issue.updated_at).getTime() < new Date(args.commitdate).getTime();
+}
 async function markStale(
   client: github.GitHub,
   issue: Issue,

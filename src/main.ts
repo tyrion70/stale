@@ -38,10 +38,10 @@ async function processIssues(
     page: page
   });
 
-  operationsLeft -= 1;	
+  operationsLeft -= 1;
 
-  if (issues.data.length === 0 || operationsLeft === 0) {	
-    return operationsLeft;	
+  if (issues.data.length === 0 || operationsLeft === 0) {
+    return operationsLeft;
   }
 
   core.debug(`1 Start processing, commitjson = ${args.commitjson}`);
@@ -81,16 +81,19 @@ async function processIssues(
       continue;
     } else if (needsrebase(issue, commitdate)) {
       core.debug(`check issue: ${issue.title} because it has label already`);
-      operationsLeft -= await markStale(client, issue, staleMessage, staleLabel);
+      operationsLeft -= await markStale(
+        client,
+        issue,
+        staleMessage,
+        staleLabel
+      );
     } else {
       core.debug(`nothing done for issue: ${issue.title}`);
     }
-    if (operationsLeft <= 0) {	
-      core.warning(	
-        `performed 100 operations, exiting to avoid rate limit`	
-      );	
-      return 0;	
-    }	
+    if (operationsLeft <= 0) {
+      core.warning(`performed 100 operations, exiting to avoid rate limit`);
+      return 0;
+    }
   }
   return await processIssues(client, args, operationsLeft, page + 1);
 }

@@ -22,7 +22,6 @@ type Args = {
 async function run() {
   try {
     const args = getAndValidateArgs();
-    
 
     const client = new github.GitHub(args.repoToken);
     await processIssues(client, args, args.operationsPerRun);
@@ -53,8 +52,8 @@ async function processIssues(
   }
 
   core.debug(`1 Start processing, commitjson = ${args.commitjson}`);
-  let commit = JSON.parse(args.commitjson)
-  let commitdate = commit.author.date 
+  let commit = JSON.parse(args.commitjson);
+  let commitdate = commit.author.date;
   core.debug(`2 Start processing, commitdate = ${commitdate}`);
 
   for (var issue of issues.data.values()) {

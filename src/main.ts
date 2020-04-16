@@ -74,16 +74,21 @@ async function processIssues(
     } else if (isLabeled(issue, staleLabel)) {
       if (wasLastUpdatedBefore(issue, args.daysBeforeClose)) {
         operationsLeft -= await closeIssue(client, issue);
+        core.debug(`closing issue: ${issue.title} because it has label already`)
       } else {
+        core.debug(`skipping issue: ${issue.title} because it has label already`)
         continue;
       }
     } else if (needsrebase(issue, args.commitdate)) {
+      core.debug(`check issue: ${issue.title} because it has label already`)
       operationsLeft -= await markStale(
         client,
         issue,
         staleMessage,
         staleLabel
       );
+    } else { 
+      core.debug(`nothing done for issue: ${issue.title}`)
     }
 
     if (operationsLeft <= 0) {
@@ -110,6 +115,11 @@ function wasLastUpdatedBefore(issue: Issue, num_days: number): boolean {
 }
 
 function needsrebase(issue: Issue, commitdate: string): boolean {
+  core.debug(`commitdate ${commitdate}`);
+  const issueTimeInMillis = new Date(issue.updated_at).getTime()
+  const commitTimeInMillis = new Date(commitdate).getTime()
+  core.debug(`issueTimeInMillis ${issueTimeInMillis}`);
+  core.debug(`commitTimeInMillis ${commitTimeInMillis}`);
   return new Date(issue.updated_at).getTime() < new Date(commitdate).getTime();
 }
 async function markStale(

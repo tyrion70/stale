@@ -27,6 +27,8 @@ async function run() {
     core.debug(`1 Start processing, commitdate = ${commitdate}`);
     core.warn(`2 Start processing, commitdate = ${commitdate}`);
     console.log(`3 Start processing, commitdate = ${commitdate}`);
+    core.error('error');
+    core.setFailed('error');
     await processIssues(client, args, args.operationsPerRun);
     
   } catch (error) {

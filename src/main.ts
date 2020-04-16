@@ -24,7 +24,9 @@ async function run() {
     const args = getAndValidateArgs();
 
     const client = new github.GitHub(args.repoToken);
-    core.debug(`Start processing, commitdate = ${commitdate}`);
+    core.debug(`1 Start processing, commitdate = ${commitdate}`);
+    core.warn(`2 Start processing, commitdate = ${commitdate}`);
+    console.log(`3 Start processing, commitdate = ${commitdate}`);
     await processIssues(client, args, args.operationsPerRun);
     
   } catch (error) {

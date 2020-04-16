@@ -58,7 +58,7 @@ async function processIssues(
   }
 
   for (var issue of issues.data.values()) {
-    core.debug(`found issue: ${issue.title} last updated ${issue.updated_at}`);
+    core.debug(`PETER found issue: ${issue.title} last updated ${issue.updated_at}`);
     let isPr = !!issue.pull_request;
 
     let staleMessage = isPr ? args.stalePrMessage : args.staleIssueMessage;

@@ -77,7 +77,7 @@ async function processIssues(
       } else {
         continue;
       }
-    } else if (needsrebase(issue)) {
+    } else if (needsrebase(issue, args.commitdate)) {
       operationsLeft -= await markStale(
         client,
         issue,
@@ -109,8 +109,8 @@ function wasLastUpdatedBefore(issue: Issue, num_days: number): boolean {
   return millisSinceLastUpdated >= daysInMillis;
 }
 
-function needsrebase(issue: Issue): boolean {
-  return new Date(issue.updated_at).getTime() < new Date(args.commitdate).getTime();
+function needsrebase(issue: Issue, commitdate: string): boolean {
+  return new Date(issue.updated_at).getTime() < new Date(commitdate).getTime();
 }
 async function markStale(
   client: github.GitHub,

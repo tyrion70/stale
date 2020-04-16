@@ -16,6 +16,7 @@ type Args = {
   stalePrLabel: string;
   exemptPrLabel: string;
   operationsPerRun: number;
+  commitdate: string;
 };
 
 async function run() {
@@ -23,7 +24,9 @@ async function run() {
     const args = getAndValidateArgs();
 
     const client = new github.GitHub(args.repoToken);
+    core.debug(`Start processing, commitdate = ${commitdate}`);
     await processIssues(client, args, args.operationsPerRun);
+    
   } catch (error) {
     core.error(error);
     core.setFailed(error.message);

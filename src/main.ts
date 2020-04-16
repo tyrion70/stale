@@ -24,11 +24,7 @@ async function run() {
     const args = getAndValidateArgs();
 
     const client = new github.GitHub(args.repoToken);
-    core.debug(`1 Start processing, commitdate = ${commitdate}`);
-    core.warn(`2 Start processing, commitdate = ${commitdate}`);
-    console.log(`3 Start processing, commitdate = ${commitdate}`);
-    core.error('error');
-    core.setFailed('error');
+    core.debug(`1 Start processing, commitdate = ${args.commitdate}`);
     await processIssues(client, args, args.operationsPerRun);
     
   } catch (error) {
@@ -168,7 +164,8 @@ function getAndValidateArgs(): Args {
     exemptPrLabel: core.getInput('exempt-pr-label'),
     operationsPerRun: parseInt(
       core.getInput('operations-per-run', {required: true})
-    )
+    ),
+    commitdate: core.getInput('commitdate'),
   };
 
   for (var numberInput of [
@@ -183,11 +180,5 @@ function getAndValidateArgs(): Args {
 
   return args;
 }
-
-  core.debug(`1 Start processing, commitdate = ${commitdate}`);
-  core.warn(`2 Start processing, commitdate = ${commitdate}`);
-  console.log(`3 Start processing, commitdate = ${commitdate}`);
-  core.error('error');
-  core.setFailed('error');
 
 run();

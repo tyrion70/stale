@@ -16,15 +16,15 @@ type Args = {
   stalePrLabel: string;
   exemptPrLabel: string;
   operationsPerRun: number;
-  commitdate: string;
+  commitjson: string;
 };
 
 async function run() {
   try {
     const args = getAndValidateArgs();
+    
 
     const client = new github.GitHub(args.repoToken);
-    core.debug(`1 Start processing, commitdate = ${args.commitdate}`);
     await processIssues(client, args, args.operationsPerRun);
   } catch (error) {
     core.error(error);
@@ -51,6 +51,11 @@ async function processIssues(
   if (issues.data.length === 0 || operationsLeft === 0) {
     return operationsLeft;
   }
+
+  core.debug(`1 Start processing, commitjson = ${args.commitjson}`);
+  let commit = JSON.parse(args.commitjson)
+  let commitdate = commit.author.date 
+  core.debug(`2 Start processing, commitdate = ${commitdate}`);
 
   for (var issue of issues.data.values()) {
     core.debug(
@@ -83,7 +88,7 @@ async function processIssues(
         );
         continue;
       }
-    } else if (needsrebase(issue, args.commitdate)) {
+    } else if (needsrebase(issue, commitdate)) {
       core.debug(`check issue: ${issue.title} because it has label already`);
       operationsLeft -= await markStale(
         client,
@@ -186,7 +191,7 @@ function getAndValidateArgs(): Args {
     operationsPerRun: parseInt(
       core.getInput('operations-per-run', {required: true})
     ),
-    commitdate: core.getInput('commitdate.author.date')
+    commitjson: core.getInput('commitjson')
   };
 
   for (var numberInput of [

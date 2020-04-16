@@ -26,7 +26,6 @@ async function run() {
     const client = new github.GitHub(args.repoToken);
     core.debug(`1 Start processing, commitdate = ${args.commitdate}`);
     await processIssues(client, args, args.operationsPerRun);
-    
   } catch (error) {
     core.error(error);
     core.setFailed(error.message);
@@ -54,7 +53,9 @@ async function processIssues(
   }
 
   for (var issue of issues.data.values()) {
-    core.debug(`PETER found issue: ${issue.title} last updated ${issue.updated_at}`);
+    core.debug(
+      `PETER found issue: ${issue.title} last updated ${issue.updated_at}`
+    );
     let isPr = !!issue.pull_request;
 
     let staleMessage = isPr ? args.stalePrMessage : args.staleIssueMessage;
@@ -165,7 +166,7 @@ function getAndValidateArgs(): Args {
     operationsPerRun: parseInt(
       core.getInput('operations-per-run', {required: true})
     ),
-    commitdate: core.getInput('commitdate'),
+    commitdate: core.getInput('commitdate')
   };
 
   for (var numberInput of [

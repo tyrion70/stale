@@ -50,16 +50,16 @@ async function processIssues(
 
     if (!isPr) continue;
 
-    let staleMessage = args.stalePrMessage
+    let staleMessage = args.stalePrMessage;
     if (!staleMessage) {
       core.debug(`skipping ${isPr ? 'pr' : 'issue'} due to empty message`);
       continue;
     }
 
-    let staleLabel = args.stalePrLabel
+    let staleLabel = args.stalePrLabel;
 
     if (isLabeled(issue, staleLabel)) {
-/*
+      /*
       if (wasLastUpdatedBefore(issue, args.daysBeforeClose)) {
         core.debug(
           `closing issue: ${issue.title} because it has label already`
@@ -74,12 +74,7 @@ async function processIssues(
       continue;
     } else if (needsrebase(issue, commitdate)) {
       core.debug(`check issue: ${issue.title} because it has label already`);
-      await markStale(
-        client,
-        issue,
-        staleMessage,
-        staleLabel
-      );
+      await markStale(client, issue, staleMessage, staleLabel);
     } else {
       core.debug(`nothing done for issue: ${issue.title}`);
     }

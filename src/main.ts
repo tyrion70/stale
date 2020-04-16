@@ -17,7 +17,7 @@ async function run() {
     const args = getAndValidateArgs();
 
     const client = new github.GitHub(args.repoToken);
-    await processIssues(client, args);
+    await processIssues(client, args, 100);
   } catch (error) {
     core.error(error);
     core.setFailed(error.message);
@@ -27,6 +27,7 @@ async function run() {
 async function processIssues(
   client: github.GitHub,
   args: Args,
+  operationsLeft: number,
   page: number = 1
 ): Promise<number> {
   const issues = await client.issues.listForRepo({
@@ -36,6 +37,12 @@ async function processIssues(
     per_page: 100,
     page: page
   });
+
+  operationsLeft -= 1;	
+
+  if (issues.data.length === 0 || operationsLeft === 0) {	
+    return operationsLeft;	
+  }
 
   core.debug(`1 Start processing, commitjson = ${args.commitjson}`);
   let commit = JSON.parse(args.commitjson);
@@ -74,12 +81,18 @@ async function processIssues(
       continue;
     } else if (needsrebase(issue, commitdate)) {
       core.debug(`check issue: ${issue.title} because it has label already`);
-      await markStale(client, issue, staleMessage, staleLabel);
+      operationsLeft -= await markStale(client, issue, staleMessage, staleLabel);
     } else {
       core.debug(`nothing done for issue: ${issue.title}`);
     }
+    if (operationsLeft <= 0) {	
+      core.warning(	
+        `performed 100 operations, exiting to avoid rate limit`	
+      );	
+      return 0;	
+    }	
   }
-  return await processIssues(client, args, page + 1);
+  return await processIssues(client, args, operationsLeft, page + 1);
 }
 
 function isLabeled(issue: Issue, label: string): boolean {

@@ -7,15 +7,8 @@ type IssueLabel = Octokit.IssuesListForRepoResponseItemLabelsItem;
 
 type Args = {
   repoToken: string;
-  staleIssueMessage: string;
   stalePrMessage: string;
-  daysBeforeStale: number;
-  daysBeforeClose: number;
-  staleIssueLabel: string;
-  exemptIssueLabel: string;
   stalePrLabel: string;
-  exemptPrLabel: string;
-  operationsPerRun: number;
   commitjson: string;
 };
 
@@ -24,7 +17,7 @@ async function run() {
     const args = getAndValidateArgs();
 
     const client = new github.GitHub(args.repoToken);
-    await processIssues(client, args, args.operationsPerRun);
+    await processIssues(client, args);
   } catch (error) {
     core.error(error);
     core.setFailed(error.message);
@@ -34,7 +27,6 @@ async function run() {
 async function processIssues(
   client: github.GitHub,
   args: Args,
-  operationsLeft: number,
   page: number = 1
 ): Promise<number> {
   const issues = await client.issues.listForRepo({
@@ -44,12 +36,6 @@ async function processIssues(
     per_page: 100,
     page: page
   });
-
-  operationsLeft -= 1;
-
-  if (issues.data.length === 0 || operationsLeft === 0) {
-    return operationsLeft;
-  }
 
   core.debug(`1 Start processing, commitjson = ${args.commitjson}`);
   let commit = JSON.parse(args.commitjson);
@@ -64,20 +50,17 @@ async function processIssues(
 
     if (!isPr) continue;
 
-    let staleMessage = isPr ? args.stalePrMessage : args.staleIssueMessage;
+    let staleMessage = args.stalePrMessage
     if (!staleMessage) {
       core.debug(`skipping ${isPr ? 'pr' : 'issue'} due to empty message`);
       continue;
     }
 
-    let staleLabel = isPr ? args.stalePrLabel : args.staleIssueLabel;
-    let exemptLabel = isPr ? args.exemptPrLabel : args.exemptIssueLabel;
+    let staleLabel = args.stalePrLabel
 
-    if (exemptLabel && isLabeled(issue, exemptLabel)) {
-      continue;
-    } else if (isLabeled(issue, staleLabel)) {
+    if (isLabeled(issue, staleLabel)) {
+/*
       if (wasLastUpdatedBefore(issue, args.daysBeforeClose)) {
-        operationsLeft -= await closeIssue(client, issue);
         core.debug(
           `closing issue: ${issue.title} because it has label already`
         );
@@ -87,9 +70,11 @@ async function processIssues(
         );
         continue;
       }
+*/
+      continue;
     } else if (needsrebase(issue, commitdate)) {
       core.debug(`check issue: ${issue.title} because it has label already`);
-      operationsLeft -= await markStale(
+      await markStale(
         client,
         issue,
         staleMessage,
@@ -98,15 +83,8 @@ async function processIssues(
     } else {
       core.debug(`nothing done for issue: ${issue.title}`);
     }
-
-    if (operationsLeft <= 0) {
-      core.warning(
-        `performed ${args.operationsPerRun} operations, exiting to avoid rate limit`
-      );
-      return 0;
-    }
   }
-  return await processIssues(client, args, operationsLeft, page + 1);
+  return await processIssues(client, args, page + 1);
 }
 
 function isLabeled(issue: Issue, label: string): boolean {
@@ -175,33 +153,10 @@ async function closeIssue(
 function getAndValidateArgs(): Args {
   const args = {
     repoToken: core.getInput('repo-token', {required: true}),
-    staleIssueMessage: core.getInput('stale-issue-message'),
     stalePrMessage: core.getInput('stale-pr-message'),
-    daysBeforeStale: parseInt(
-      core.getInput('days-before-stale', {required: true})
-    ),
-    daysBeforeClose: parseInt(
-      core.getInput('days-before-close', {required: true})
-    ),
-    staleIssueLabel: core.getInput('stale-issue-label', {required: true}),
-    exemptIssueLabel: core.getInput('exempt-issue-label'),
     stalePrLabel: core.getInput('stale-pr-label', {required: true}),
-    exemptPrLabel: core.getInput('exempt-pr-label'),
-    operationsPerRun: parseInt(
-      core.getInput('operations-per-run', {required: true})
-    ),
     commitjson: core.getInput('commitjson')
   };
-
-  for (var numberInput of [
-    'days-before-stale',
-    'days-before-close',
-    'operations-per-run'
-  ]) {
-    if (isNaN(parseInt(core.getInput(numberInput)))) {
-      throw Error(`input ${numberInput} did not parse to a valid integer`);
-    }
-  }
 
   return args;
 }

@@ -186,7 +186,7 @@ function getAndValidateArgs(): Args {
     operationsPerRun: parseInt(
       core.getInput('operations-per-run', {required: true})
     ),
-    commitdate: core.getInput('commitdate')
+    commitdate: core.getInput('commitdate.author.date')
   };
 
   for (var numberInput of [
